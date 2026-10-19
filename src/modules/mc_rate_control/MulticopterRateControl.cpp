@@ -80,6 +80,15 @@ MulticopterRateControl::parameters_updated()
 	// to the ideal (K * [1 + 1/sTi + sTd]) form
 	const Vector3f rate_k = Vector3f(_param_mc_rollrate_k.get(), _param_mc_pitchrate_k.get(), _param_mc_yawrate_k.get());
 
+	// Get TDC parameters
+	_tdc_control.setParams(
+		Vector3f(_param_tdc_k1_roll.get(), _param_tdc_k1_pitch.get(), _param_tdc_k1_yaw.get()),
+		Vector3f(_param_tdc_k2_roll.get(), _param_tdc_k2_pitch.get(), _param_tdc_k2_yaw.get()),
+		Vector3f(_param_tdc_g_bar_roll.get(), _param_tdc_g_bar_pitch.get(), _param_tdc_g_bar_yaw.get()),
+		float(_param_tdc_limit.get())
+	);
+
+
 	_rate_control.setPidGains(
 		rate_k.emult(Vector3f(_param_mc_rollrate_p.get(), _param_mc_pitchrate_p.get(), _param_mc_yawrate_p.get())),
 		rate_k.emult(Vector3f(_param_mc_rollrate_i.get(), _param_mc_pitchrate_i.get(), _param_mc_yawrate_i.get())),
@@ -123,6 +132,7 @@ MulticopterRateControl::Run()
 	/* run controller on gyro changes */
 	vehicle_angular_velocity_s angular_velocity;
 
+
 	if (_vehicle_angular_velocity_sub.update(&angular_velocity)) {
 
 		const hrt_abstime now = angular_velocity.timestamp_sample;
@@ -137,9 +147,15 @@ MulticopterRateControl::Run()
 		/* check for updates in other topics */
 		_vehicle_control_mode_sub.update(&_vehicle_control_mode);
 
+		if (_arm_state_sub.updated()) {
+			arm_state_s arm_state;
+			if (_arm_state_sub.copy(&arm_state)) {
+				ff_comp_torque = arm_state.ff_torque[1];
+			}
+		}
+
 		if (_vehicle_land_detected_sub.updated()) {
 			vehicle_land_detected_s vehicle_land_detected;
-
 			if (_vehicle_land_detected_sub.copy(&vehicle_land_detected)) {
 				_landed = vehicle_land_detected.landed;
 				_maybe_landed = vehicle_land_detected.maybe_landed;
@@ -147,6 +163,18 @@ MulticopterRateControl::Run()
 		}
 
 		_vehicle_status_sub.update(&_vehicle_status);
+		vehicle_attitude_s att{};
+		_vehicle_attitude_sub.copy(&att);
+		Vector3f att_eul;
+		{
+			const Quatf q_att{att.q};
+			att_eul(0) = Eulerf(q_att).phi();
+			att_eul(1) = Eulerf(q_att).theta();
+			att_eul(2) = Eulerf(q_att).psi();
+		}
+
+		Vector3f att_control(0.f, 0.f, 0.f);
+		Vector3f att_target_eul(0.f, 0.f, 0.f);
 
 		// use rates setpoint topic
 		vehicle_rates_setpoint_s vehicle_rates_setpoint{};
@@ -216,11 +244,35 @@ MulticopterRateControl::Run()
 			}
 
 			// run rate controller
-			Vector3f torque_setpoint =
-				_rate_control.update(rates, _rates_setpoint, angular_accel, dt, _maybe_landed || _landed);
+			if (_param_mc_rate_mode.get() == 1)
+			{
+				if (_vehicle_attitude_setpoint_sub.updated())
+				{
+					vehicle_attitude_setpoint_s vehicle_attitude_setpoint;
+					if (_vehicle_attitude_setpoint_sub.copy(&vehicle_attitude_setpoint))
+					{
+						att_target_eul = Eulerf(Quatf(vehicle_attitude_setpoint.q_d));
 
-			// apply low-pass filtering on yaw axis to reduce high frequency torque caused by rotor acceleration
-			torque_setpoint(2) = _output_lpf_yaw.update(torque_setpoint(2), dt);
+						att_control = _tdc_control.update(att_target_eul, _rates_setpoint, att_eul, rates, rates_old, dt);
+					}
+				} else {
+					att_control = _rate_control.update(rates, _rates_setpoint, angular_accel, dt, _maybe_landed || _landed);
+				}
+			} else {
+				att_control = _rate_control.update(rates, _rates_setpoint, angular_accel, dt, _maybe_landed || _landed);
+			}
+
+			rates_old = rates;
+
+			// =========================================================================
+			// Arm Feedforward Kompensation (Pitch / Y-Achse, 9 Terme)
+			// =========================================================================
+			if (_param_arm_ff_en.get() == 1) {
+
+				// Auf Pitch-Moment aufschalten
+				att_control(1) += ff_comp_torque;
+			}
+			// =========================================================================
 
 			// publish rate controller status
 			rate_ctrl_status_s rate_ctrl_status{};
@@ -233,9 +285,9 @@ MulticopterRateControl::Run()
 			vehicle_torque_setpoint_s vehicle_torque_setpoint{};
 
 			_thrust_setpoint.copyTo(vehicle_thrust_setpoint.xyz);
-			vehicle_torque_setpoint.xyz[0] = PX4_ISFINITE(torque_setpoint(0)) ? torque_setpoint(0) : 0.f;
-			vehicle_torque_setpoint.xyz[1] = PX4_ISFINITE(torque_setpoint(1)) ? torque_setpoint(1) : 0.f;
-			vehicle_torque_setpoint.xyz[2] = PX4_ISFINITE(torque_setpoint(2)) ? torque_setpoint(2) : 0.f;
+			vehicle_torque_setpoint.xyz[0] = PX4_ISFINITE(att_control(0)) ? att_control(0) : 0.f;
+			vehicle_torque_setpoint.xyz[1] = PX4_ISFINITE(att_control(1)) ? att_control(1) : 0.f;
+			vehicle_torque_setpoint.xyz[2] = PX4_ISFINITE(att_control(2)) ? att_control(2) : 0.f;
 
 			// scale setpoints by battery status if enabled
 			if (_param_mc_bat_scale_en.get()) {

@@ -30,6 +30,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 ############################################################################
+add_subdirectory(TDC)
 
 px4_add_module(
 	MODULE modules__mc_rate_control
@@ -40,6 +41,7 @@ px4_add_module(
 		MulticopterRateControl.cpp
 		MulticopterRateControl.hpp
 	DEPENDS
+		TDC
 		circuit_breaker
 		mathlib
 		RateControl

@@ -305,3 +305,11 @@ PARAM_DEFINE_INT32(MC_BAT_SCALE_EN, 0);
  * @group Multicopter Rate Control
  */
 PARAM_DEFINE_FLOAT(MC_YAW_TQ_CUTOFF, 2.f);
+
+/**
+ * Enable arm feedforward compensation
+ *
+ * @boolean
+ * @group Multicopter Rate Control
+ */
+PARAM_DEFINE_INT32(ARM_FF_EN, 0);

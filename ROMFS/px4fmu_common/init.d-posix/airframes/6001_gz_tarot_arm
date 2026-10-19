@@ -1,0 +1,126 @@
+#!/bin/sh
+#
+# @name Gazebo Tarot X6
+#
+# @type Hexarotor x
+#
+# PX4 v1.14 + Gazebo Garden (gz-sim) airframe for the custom tarot_x6 model.
+# Filename MUST follow the <id>_gz_<modelname> convention so the build system
+# auto-creates the `make px4_sitl gz_tarot_arm` target and matches it to
+# Tools/simulation/gz/models/tarot_arm/.
+#
+
+. ${R}etc/init.d/rc.mc_defaults
+
+# ---- Simulator / model binding (gz convention, same as 4001_gz_x500) ----
+PX4_SIMULATOR=${PX4_SIMULATOR:=gz}
+PX4_GZ_WORLD=${PX4_GZ_WORLD:=default}
+PX4_SIM_MODEL=${PX4_SIM_MODEL:=tarot_arm}
+
+param set-default SIM_GZ_EN 1
+
+param set-default CBRK_SUPPLY_CHK 894281
+
+# ---- Simulated sensors (baro comes from the gz air_pressure sensor) ----
+param set-default SENS_EN_GPSSIM 1
+param set-default SENS_EN_BAROSIM 1
+param set-default SENS_EN_MAGSIM 1
+
+# ---- Vehicle type ----
+param set-default MAV_TYPE 13   # hexarotor
+
+# =========================================================================
+#  CONTROL ALLOCATION  (Dynamic Control Allocation, PX4 v1.14)
+#  Frame: FRD  (X fwd, Y RIGHT, Z down)  ->  CA_PY = -(gz/SDF Y).
+#  Positions are the true rotor offsets from tarotx6_simscape.urdf [m].
+#  Sign rule (verified against your x500): ccw -> KM = +0.05, cw -> KM = -0.05.
+#
+#     CA idx = SDF <motorNumber> = SIM_GZ_EC output below.
+#     idx  location      SDF spin   PX        PY        KM
+#     ---  ------------  --------   -------   -------   -----
+#      0   front-right   ccw        +0.4262   +0.2460   +0.05
+#      1   front-left    cw         +0.4262   -0.2460   -0.05
+#      2   left          ccw         0.0000   -0.4921   +0.05
+#      3   rear-left     cw         -0.4262   -0.2460   -0.05
+#      4   rear-right    ccw        -0.4262   +0.2460   +0.05
+#      5   right         cw          0.0000   +0.4921   -0.05
+# =========================================================================
+param set-default CA_AIRFRAME 0
+param set-default CA_ROTOR_COUNT 6
+
+param set-default CA_ROTOR0_PX 0.4262
+param set-default CA_ROTOR0_PY 0.2460
+param set-default CA_ROTOR0_KM 0.05
+
+param set-default CA_ROTOR1_PX 0.4262
+param set-default CA_ROTOR1_PY -0.2460
+param set-default CA_ROTOR1_KM -0.05
+
+param set-default CA_ROTOR2_PX 0.0
+param set-default CA_ROTOR2_PY -0.4921
+param set-default CA_ROTOR2_KM 0.05
+
+param set-default CA_ROTOR3_PX -0.4262
+param set-default CA_ROTOR3_PY -0.2460
+param set-default CA_ROTOR3_KM -0.05
+
+param set-default CA_ROTOR4_PX -0.4262
+param set-default CA_ROTOR4_PY 0.2460
+param set-default CA_ROTOR4_KM 0.05
+
+param set-default CA_ROTOR5_PX 0.0
+param set-default CA_ROTOR5_PY 0.4921
+param set-default CA_ROTOR5_KM -0.05
+
+# =========================================================================
+#  ACTUATOR OUTPUT MAPPING  (gz ESC interface)
+#  Function 101+i ("Motor i+1") -> gz command/motor_speed array index i
+#  -> MulticopterMotorModel <motorNumber> i in model.sdf.
+#  MIN/MAX are rotor speeds [rad/s]; MAX must equal <maxRotVelocity> (1000).
+# =========================================================================
+param set-default SIM_GZ_EC_FUNC1 101
+param set-default SIM_GZ_EC_FUNC2 102
+param set-default SIM_GZ_EC_FUNC3 103
+param set-default SIM_GZ_EC_FUNC4 104
+param set-default SIM_GZ_EC_FUNC5 105
+param set-default SIM_GZ_EC_FUNC6 106
+
+param set-default SIM_GZ_EC_MIN1 150
+param set-default SIM_GZ_EC_MIN2 150
+param set-default SIM_GZ_EC_MIN3 150
+param set-default SIM_GZ_EC_MIN4 150
+param set-default SIM_GZ_EC_MIN5 150
+param set-default SIM_GZ_EC_MIN6 150
+
+param set-default SIM_GZ_EC_MAX1 1000
+param set-default SIM_GZ_EC_MAX2 1000
+param set-default SIM_GZ_EC_MAX3 1000
+param set-default SIM_GZ_EC_MAX4 1000
+param set-default SIM_GZ_EC_MAX5 1000
+param set-default SIM_GZ_EC_MAX6 1000
+
+# ---- Hover throttle: 4.75 kg / (6 * k * w^2). With motorConstant 1.78e-5
+#      and EC range [150,1000] rad/s this lands hover near 0.60. ----
+param set-default MPC_THR_HOVER 0.60
+
+# ---- Rate/attitude gains: conservative hexa starting point (Typhoon-like).
+#      Re-tune for the real 4.75 kg / 0.49 m-arm dynamics. ----
+param set-default MC_ROLLRATE_P 0.0800
+param set-default MC_ROLLRATE_I 0.0400
+param set-default MC_ROLLRATE_D 0.0010
+param set-default MC_ROLL_P 9.0
+param set-default MC_PITCHRATE_P 0.0800
+param set-default MC_PITCHRATE_I 0.0400
+param set-default MC_PITCHRATE_D 0.0010
+param set-default MC_PITCH_P 9.0
+param set-default MPC_XY_VEL_P_ACC 3.0
+param set-default MPC_XY_VEL_I_ACC 4.0
+
+# Yaw rate (fehlt komplett)
+param set-default MC_YAWRATE_P 0.15
+param set-default MC_YAWRATE_I 0.05
+param set-default MC_YAWRATE_D 0.002
+
+# Vertikal (zu aggressiv für 4.75 kg)
+param set-default MPC_Z_VEL_P_ACC 2.0
+param set-default MPC_Z_P 0.6

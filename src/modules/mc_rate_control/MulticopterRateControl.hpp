@@ -61,6 +61,13 @@
 #include <uORB/topics/vehicle_thrust_setpoint.h>
 #include <uORB/topics/vehicle_torque_setpoint.h>
 
+#include <uORB/topics/vehicle_attitude.h>
+#include <uORB/topics/vehicle_attitude_setpoint.h>
+
+#include <TDC.hpp>
+
+#include <uORB/topics/arm_state.h>
+
 using namespace time_literals;
 
 class MulticopterRateControl : public ModuleBase<MulticopterRateControl>, public ModuleParams, public px4::WorkItem
@@ -81,6 +88,15 @@ public:
 	bool init();
 
 private:
+	// custom tdc control class
+	TDC _tdc_control;
+	matrix::Vector3f rates_old;
+
+	//
+	uORB::Subscription _arm_state_sub{ORB_ID(arm_state)};
+	float ff_comp_torque = 0.0f;
+	//
+
 	void Run() override;
 
 	/**
@@ -99,6 +115,8 @@ private:
 	uORB::Subscription _vehicle_land_detected_sub{ORB_ID(vehicle_land_detected)};
 	uORB::Subscription _vehicle_rates_setpoint_sub{ORB_ID(vehicle_rates_setpoint)};
 	uORB::Subscription _vehicle_status_sub{ORB_ID(vehicle_status)};
+	uORB::Subscription _vehicle_attitude_sub{ORB_ID(vehicle_attitude)};
+	uORB::Subscription _vehicle_attitude_setpoint_sub{ORB_ID(vehicle_attitude_setpoint)};
 
 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
 
@@ -163,6 +181,22 @@ private:
 		(ParamFloat<px4::params::MC_ACRO_SUPEXPO>) _param_mc_acro_supexpo,		/**< superexpo stick curve shape (roll & pitch) */
 		(ParamFloat<px4::params::MC_ACRO_SUPEXPOY>) _param_mc_acro_supexpoy,		/**< superexpo stick curve shape (yaw) */
 
-		(ParamBool<px4::params::MC_BAT_SCALE_EN>) _param_mc_bat_scale_en
+		(ParamBool<px4::params::MC_BAT_SCALE_EN>) _param_mc_bat_scale_en,
+
+		// custom tdc parameters (jiecheng)
+		(ParamInt<px4::params::TDC_RT_MODE>) _param_mc_rate_mode,
+		(ParamFloat<px4::params::TDC_K1_R>) _param_tdc_k1_roll,
+		(ParamFloat<px4::params::TDC_K1_P>) _param_tdc_k1_pitch,
+		(ParamFloat<px4::params::TDC_K1_Y>) _param_tdc_k1_yaw,
+		(ParamFloat<px4::params::TDC_K2_R>) _param_tdc_k2_roll,
+		(ParamFloat<px4::params::TDC_K2_P>) _param_tdc_k2_pitch,
+		(ParamFloat<px4::params::TDC_K2_Y>) _param_tdc_k2_yaw,
+		(ParamFloat<px4::params::TDC_GBAR_R>) _param_tdc_g_bar_roll,
+		(ParamFloat<px4::params::TDC_GBAR_P>) _param_tdc_g_bar_pitch,
+		(ParamFloat<px4::params::TDC_GBAR_Y>) _param_tdc_g_bar_yaw,
+		(ParamFloat<px4::params::TDC_LIMIT>) _param_tdc_limit,
+
+		(ParamInt<px4::params::ARM_FF_EN>)  _param_arm_ff_en
+
 	)
 };

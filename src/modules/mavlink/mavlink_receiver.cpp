@@ -2817,6 +2817,29 @@ MavlinkReceiver::handle_message_debug_float_array(mavlink_message_t *msg)
 	mavlink_debug_float_array_t debug_msg;
 	mavlink_msg_debug_float_array_decode(msg, &debug_msg);
 
+	// -- Request the Arm State --
+	static constexpr uint16_t ARM_STATE_ARRAY_ID = 42;
+
+	if (debug_msg.array_id == ARM_STATE_ARRAY_ID) {
+		arm_state_s s{};
+		s.timestamp = hrt_absolute_time();
+		s.timestamp_sample = debug_msg.time_usec;
+
+		for (int i = 0; i < 4; i++) {
+			s.angle[i]        = debug_msg.data[i];
+			s.velocity[i]     = debug_msg.data[4 + i];
+			s.acceleration[i] = debug_msg.data[8 + i];
+		}
+
+		for (int i = 0; i < 3; i++){
+			s.ff_torque[i] = debug_msg.data[12 + i];
+		}
+
+		_arm_state_pub.publish(s);
+		return;
+	}
+	// ---
+
 	debug_array_s debug_topic{};
 
 	debug_topic.timestamp = hrt_absolute_time();
