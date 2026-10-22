@@ -219,6 +219,7 @@ MulticopterRateControl::Run()
 			// reset integral if disarmed
 			if (!_vehicle_control_mode.flag_armed || _vehicle_status.vehicle_type != vehicle_status_s::VEHICLE_TYPE_ROTARY_WING) {
 				_rate_control.resetIntegral();
+				_tdc_control.reset();
 			}
 
 			// update saturation status from control allocation feedback
@@ -243,21 +244,22 @@ MulticopterRateControl::Run()
 				_rate_control.setSaturationStatus(saturation_positive, saturation_negative);
 			}
 
-			// run rate controller
-			if (_param_mc_rate_mode.get() == 1)
-			{
-				if (_vehicle_attitude_setpoint_sub.updated())
-				{
-					vehicle_attitude_setpoint_s vehicle_attitude_setpoint;
-					if (_vehicle_attitude_setpoint_sub.copy(&vehicle_attitude_setpoint))
-					{
-						att_target_eul = Eulerf(Quatf(vehicle_attitude_setpoint.q_d));
-
-						att_control = _tdc_control.update(att_target_eul, _rates_setpoint, att_eul, rates, rates_old, dt);
-					}
-				} else {
-					att_control = _rate_control.update(rates, _rates_setpoint, angular_accel, dt, _maybe_landed || _landed);
+			// Update vehicle attitude setpoints (50Hz)
+			vehicle_attitude_setpoint_s vehicle_attitude_setpoint;
+			if (_vehicle_attitude_setpoint_sub.update(&vehicle_attitude_setpoint)){
+				_att_target_eul = Eulerf(Quatf(vehicle_attitude_setpoint.q_d));
+				if (_param_mc_rate_mode.get() == 1){
+					_thrust_setpoint = Vector3f(vehicle_attitude_setpoint.thrust_body);
 				}
+			}
+
+			// run rate controller
+			// Hinweis: DER TDC ist nur als Ratenregler implementiert nicht als Lageregler!
+			// Solldrehrate (_rates_setpoint) folgt aus mc_attitude_control
+			// Berechnung wie folgt: Solldrehrate (w_sp_xyz) = MC_ROLL/PITCH/YAW_P * Winkelfehler (ROLL/PITCH/YAW)
+			// Damit man den TDC als vollständigen Lageregler auch implementieren kann, müsste auch die Solldrehrate per TDC bestimmt werden
+			if (_param_mc_rate_mode.get() == 1) {
+				att_control = _tdc_control.update(_att_target_eul, _rates_setpoint, att_eul, rates, rates_old, dt);
 			} else {
 				att_control = _rate_control.update(rates, _rates_setpoint, angular_accel, dt, _maybe_landed || _landed);
 			}

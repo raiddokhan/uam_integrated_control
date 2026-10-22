@@ -91,6 +91,7 @@ private:
 	// custom tdc control class
 	TDC _tdc_control;
 	matrix::Vector3f rates_old;
+	matrix::Vector3f _att_target_eul{}; // Persistent Memory (TDC shall run with 250Hz until next Attitude Setpoint arrives with 50Hz)
 
 	//
 	uORB::Subscription _arm_state_sub{ORB_ID(arm_state)};

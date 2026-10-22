@@ -53,21 +53,21 @@ PARAM_DEFINE_FLOAT(TDC_K2_Y, 5f);
  *
  * @group TDC
  */
-PARAM_DEFINE_FLOAT(TDC_GBAR_R, 100.0f);
+PARAM_DEFINE_FLOAT(TDC_GBAR_R, 400.0f);
 
 /**
  * TDC control effectiveness for pitch axis
  *
  * @group TDC
  */
-PARAM_DEFINE_FLOAT(TDC_GBAR_P, 100.0f);
+PARAM_DEFINE_FLOAT(TDC_GBAR_P, 400.0f);
 
 /**
  * TDC control effectiveness for yaw axis
  *
  * @group TDC
  */
-PARAM_DEFINE_FLOAT(TDC_GBAR_Y, 100.0f);
+PARAM_DEFINE_FLOAT(TDC_GBAR_Y, 400.0f);
 
 /**
  * TDC output limit
