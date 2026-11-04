@@ -93,10 +93,10 @@ private:
 	matrix::Vector3f rates_old;
 	matrix::Vector3f _att_target_eul{}; // Persistent Memory (TDC shall run with 250Hz until next Attitude Setpoint arrives with 50Hz)
 
-	//
 	uORB::Subscription _arm_state_sub{ORB_ID(arm_state)};
 	float ff_comp_torque = 0.0f;
-	//
+	float disturbance_y = 0.0f;
+
 
 	void Run() override;
 
@@ -178,7 +178,7 @@ private:
 		(ParamFloat<px4::params::MC_ACRO_P_MAX>) _param_mc_acro_p_max,
 		(ParamFloat<px4::params::MC_ACRO_Y_MAX>) _param_mc_acro_y_max,
 		(ParamFloat<px4::params::MC_ACRO_EXPO>) _param_mc_acro_expo,			/**< expo stick curve shape (roll & pitch) */
-		(ParamFloat<px4::params::MC_ACRO_EXPO_Y>) _param_mc_acro_expo_y,				/**< expo stick curve shape (yaw) */
+		(ParamFloat<px4::params::MC_ACRO_EXPO_Y>) _param_mc_acro_expo_y,	        /**< expo stick curve shape (yaw) */
 		(ParamFloat<px4::params::MC_ACRO_SUPEXPO>) _param_mc_acro_supexpo,		/**< superexpo stick curve shape (roll & pitch) */
 		(ParamFloat<px4::params::MC_ACRO_SUPEXPOY>) _param_mc_acro_supexpoy,		/**< superexpo stick curve shape (yaw) */
 
@@ -197,7 +197,9 @@ private:
 		(ParamFloat<px4::params::TDC_GBAR_Y>) _param_tdc_g_bar_yaw,
 		(ParamFloat<px4::params::TDC_LIMIT>) _param_tdc_limit,
 
-		(ParamInt<px4::params::ARM_FF_EN>)  _param_arm_ff_en
+		(ParamInt<px4::params::ARM_FF_EN>)  _param_arm_ff_en,
+		(ParamInt<px4::params::ARM_STAB_EN>)  _param_arm_stab_en,
+		(ParamInt<px4::params::DIS_PITCH_EN>)  _param_disturbance_pitch_en
 
 	)
 };

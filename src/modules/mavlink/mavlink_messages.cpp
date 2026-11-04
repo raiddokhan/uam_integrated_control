@@ -125,6 +125,8 @@
 #include "streams/VFR_HUD.hpp"
 #include "streams/VIBRATION.hpp"
 #include "streams/WIND_COV.hpp"
+#include "streams/TORQUE_SETPOINT_DEBUG.hpp"
+
 #if defined(MAVLINK_MSG_ID_FIGURE_EIGHT_EXECUTION_STATUS)
 #include "streams/FIGURE_EIGHT_EXECUTION_STATUS.hpp"
 #endif // MAVLINK_MSG_ID_FIGURE_EIGHT_EXECUTION_STATUS
@@ -401,6 +403,9 @@ static const StreamListItem streams_list[] = {
 #endif // DEBUG_VECT_HPP
 #if defined(DEBUG_FLOAT_ARRAY_HPP)
 	create_stream_list_item<MavlinkStreamDebugFloatArray>(),
+#if defined(TORQUE_SETPOINT_DEBUG_HPP)
+	create_stream_list_item<MavlinkStreamTorqueSetpointDebug>(),
+#endif // TORQUE_SETPOINT_DEBUG_HPP
 #endif // DEBUG_FLOAT_ARRAY_HPP
 #if defined(NAV_CONTROLLER_OUTPUT_HPP)
 	create_stream_list_item<MavlinkStreamNavControllerOutput>(),

@@ -10,3 +10,4 @@ float32[4] angle          # [rad]
 float32[4] velocity       # [rad/s]
 float32[4] acceleration   # [rad/s^2]
 float32[3] ff_torque      # Feedforward-Torque
+float32 pitch_disturbance     # Torque-Störung im Pitch

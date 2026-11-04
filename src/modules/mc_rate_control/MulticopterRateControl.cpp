@@ -151,6 +151,7 @@ MulticopterRateControl::Run()
 			arm_state_s arm_state;
 			if (_arm_state_sub.copy(&arm_state)) {
 				ff_comp_torque = arm_state.ff_torque[1];
+				disturbance_y = arm_state.pitch_disturbance;
 			}
 		}
 
@@ -267,12 +268,29 @@ MulticopterRateControl::Run()
 			rates_old = rates;
 
 			// =========================================================================
-			// Arm Feedforward Kompensation (Pitch / Y-Achse, 9 Terme)
+			// Arm Feedforward Compensation (Y-Axis only)
 			// =========================================================================
 			if (_param_arm_ff_en.get() == 1) {
 
-				// Auf Pitch-Moment aufschalten
 				att_control(1) += ff_comp_torque;
+			}
+			// =========================================================================
+
+			// =========================================================================
+			// Manipulator-assisted Stabilization (Y-Axis only) (FF_COMP Torque ist hier invertiert)
+			// =========================================================================
+			if (_param_arm_stab_en.get() == 1) {
+
+				att_control(1) -= ff_comp_torque;
+			}
+			// =========================================================================
+
+			// =========================================================================
+			// Pitch Disturbance kann hier eingebracht werden
+			// =========================================================================
+			if (_param_disturbance_pitch_en.get() == 1){
+
+				att_control(1) += disturbance_y;
 			}
 			// =========================================================================
 
@@ -290,6 +308,7 @@ MulticopterRateControl::Run()
 			vehicle_torque_setpoint.xyz[0] = PX4_ISFINITE(att_control(0)) ? att_control(0) : 0.f;
 			vehicle_torque_setpoint.xyz[1] = PX4_ISFINITE(att_control(1)) ? att_control(1) : 0.f;
 			vehicle_torque_setpoint.xyz[2] = PX4_ISFINITE(att_control(2)) ? att_control(2) : 0.f;
+			vehicle_torque_setpoint.arm_torque_ff = ff_comp_torque;
 
 			// scale setpoints by battery status if enabled
 			if (_param_mc_bat_scale_en.get()) {
@@ -325,8 +344,7 @@ MulticopterRateControl::Run()
 	perf_end(_loop_perf);
 }
 
-void MulticopterRateControl::updateActuatorControlsStatus(const vehicle_torque_setpoint_s &vehicle_torque_setpoint,
-		float dt)
+void MulticopterRateControl::updateActuatorControlsStatus(const vehicle_torque_setpoint_s &vehicle_torque_setpoint, float dt)
 {
 	for (int i = 0; i < 3; i++) {
 		_control_energy[i] += vehicle_torque_setpoint.xyz[i] * vehicle_torque_setpoint.xyz[i] * dt;

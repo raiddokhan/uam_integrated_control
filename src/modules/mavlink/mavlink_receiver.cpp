@@ -2835,6 +2835,8 @@ MavlinkReceiver::handle_message_debug_float_array(mavlink_message_t *msg)
 			s.ff_torque[i] = debug_msg.data[12 + i];
 		}
 
+		s.pitch_disturbance = debug_msg.data[16];
+
 		_arm_state_pub.publish(s);
 		return;
 	}

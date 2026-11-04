@@ -239,23 +239,38 @@ def run_scene():
 
     print("3. Takeoff (Position Controller an)")
     S.takeoff()
-    S.hold(20)
-
-    print("4. Setze Parameter (Failsafes & Kaskade)")
-    S.configure_px4_parameters(enable_ff=True)
+    S.hold(15)
+    S.move(S.HOME, S.DOWN,transmit=False)
     S.hold(5)
 
-    print("5. Perform trajectory")
-    S.move(S.HOME, S.DOWN, duration=5)
-    S.hold(30)
-    S.move(S.DOWN, S.STRAIGHT, duration=5)
-    S.hold(30)
+    print("5. Setze Parameter (Failsafes & Kaskade)")
+    S.configure_px4_parameters(enable_ff=False, enable_tdc=False, enable_arm_stab=True)
+    S.hold(2)
 
-    print("6. Reset Parameters")
+    print("6. Induce Disturbance in Y-Direction")
+    S.start_stabilizer()
+    S.hold(1)
+    S.induce_disturbance(dis_y=-0.3)
+    S.hold(15)
+    S.stop_stabilizer()
+    S.hold(1)
+
+    #print("Replay old arm reaction")
+    #S.stream_stab_angles("arm_reaction.mat")
+    '''
+    print("Identification of the Regressor")
+    S.move(S.DOWN, S.SWING_NEG)
+    S.hold(7)
+    S.move(S.SWING_NEG, S.DOWN)
+    S.hold(7)
+    S.move(S.DOWN, S.SWING_POS)
+    S.hold(7)
+    '''
+    print("8. Reset Parameters")
     S.reset_px4_parameters()
-    S.hold(5)
+    S.hold(2)
 
-    print("5. Land")
+    print("9. Land")
     S.land()
     S.hold(10)
 
@@ -355,7 +370,7 @@ def make_overlay(raw: Path, out: Path, poses: np.ndarray, cam: Cam, fps: int):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--px4-dir", default=str(PX4_DIR))
-    ap.add_argument("--out-dir", default=str(HERE / "recordings"))
+    ap.add_argument("--out-dir", default=str(HERE / "recordings_2"))
     ap.add_argument("--fps", type=int, default=30)
     ap.add_argument("--width", type=int, default=1280)
     ap.add_argument("--height", type=int, default=720)
@@ -402,13 +417,14 @@ def main():
     else:
         print("[rec] WARNING: no .ulg found")
 
+    '''
     if success and raw.exists() and poses is not None and len(poses) > 0:
         print("[rec] rendering overlay ...")
         make_overlay(raw, final, poses, cam, args.fps)
     else:
         print("[rec] run incomplete -> no overlay")
+    '''
     print(f"[rec] done: {outdir}")
-
 
 if __name__ == "__main__":
     main()
